@@ -25,30 +25,30 @@ class _ApiDemoState extends State<ApiDemo> {
 
   // --- Khởi tạo Dio với interceptor ---
   // Interceptor ở đây dùng để: log request, bắt lỗi, và thử retry khi là lỗi kết nối.
-  // Chúng ta đặt interceptor ngay khi tạo Dio instance.
+  // đặt interceptor ngay khi tạo Dio instance.
   final dio = Dio(BaseOptions(headers: {'Authorization': 'Bearer fake_token'}))
     ..interceptors.add(InterceptorsWrapper(
       // onRequest: chạy trước khi gửi request - dùng để log / inject token / delay giả lập...
-      onRequest: (o, h) {
-        debugPrint(' [Dio] GET ${o.uri}'); // in log để debug
-        return h.next(o); // tiếp tục chuỗi request
+      onRequest: (options, handler) {
+        debugPrint(' [Dio] GET ${options.uri}'); // in log để debug
+        return handler.next(options); // tiếp tục chuỗi request
       },
       // onError: xử lý khi có lỗi xảy ra trong quá trình request/response
-      onError: (e, h) async {
-        debugPrint(' [Dio] Error: ${e.message}');
+      onError: (error,  handler) async {
+        debugPrint(' [Dio] Error: ${error.message}');
         // Nếu là lỗi kết nối (ví dụ tắt mạng), thử retry một lần
-        if (e.type == DioExceptionType.connectionError) {
+        if (error.type == DioExceptionType.connectionError) {
           debugPrint(' Retry...');
           try {
             // gửi lại request cũ với cấu hình requestOptions
-            final retry = await Dio().fetch(e.requestOptions);
-            return h.resolve(retry); // nếu retry ok thì resolve với response mới
+            final retry = await Dio().fetch(error.requestOptions);
+            return handler.resolve(retry); // nếu retry ok thì resolve với response mới
           } catch (e2) {
             debugPrint(' Retry thất bại: $e2');
-            return h.next(e); // nếu retry thất bại thì trả lỗi
+            return handler.next(error); // nếu retry thất bại thì trả lỗi
           }
         }
-        return h.next(e); // các lỗi khác thì chuyển tiếp
+        return handler.next(error); // các lỗi khác thì chuyển tiếp
       },
     ));
 
@@ -59,7 +59,7 @@ class _ApiDemoState extends State<ApiDemo> {
     try {
       final r = await http.get(
         Uri.parse('https://jsonplaceholder.typicode.com/posts'),
-        headers: {'Authorization': 'Bearer fake_token'}, // ví dụ header auth
+        headers: {'Authorization': 'Bearer fake_token'}, 
       );
       if (r.statusCode == 200) {
         setState(() {
